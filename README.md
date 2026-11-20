@@ -49,6 +49,40 @@ Two patterns are invisible inside a single event — spraying (one IP, many acco
 history — so the engine takes them as explicit **context** inputs rather than pretending. In the
 Batch Lab the context is computed from the fixture set; on the Single Event page you supply it.
 
+## Architecture
+
+The codebase is split into a **pure scoring core** and a **thin UI shell**. The engine
+(`src/engine/`) is plain TypeScript with no React, DOM or network dependencies, so the exact
+code that scores an event in the browser is the code the test suite exercises — there is no
+second implementation to drift out of sync.
+
+```mermaid
+flowchart LR
+    A["Login event<br/>form, pasted JSON or fixture"] --> B["validateEvent<br/>validation gate"]
+    B -- "invalid — rejected,<br/>nothing is scored" --> X["Field-level errors"]
+    B -- "valid" --> C["evaluateSignals<br/>six independent signal functions"]
+    D["ScoreContext<br/>device history · previous login ·<br/>per-IP account counts · reference time"] --> C
+    C --> E["scoreEvent<br/>sum of weights, clamped 0–100"]
+    E --> F["decide<br/>Allow &lt; 40 · Flag 40–69 · Block ≥ 70"]
+    F --> G["DecisionCard<br/>score + per-signal explanation"]
+```
+
+Design rules that keep the core auditable:
+
+- **Validation before scoring** — `validateEvent` is a hard gate: malformed input is rejected
+  with field-level errors and never reaches the signals.
+- **Determinism** — the engine never reads a clock or a random source. "Now" arrives as
+  `referenceTime` inside the context, so the same event plus the same context always produces
+  the same score, in the UI and in tests alike.
+- **Context is explicit** — the two cross-event patterns (password spray, device history) are
+  passed in as inputs, not hidden state. What the engine used is always visible to the caller.
+- **Every signal explains itself** — each of the six signal functions is pure and returns its
+  weight contribution plus a plain-language reason, whether it fired or not. That is what makes
+  every point of every score traceable to a named rule.
+
+The UI shell (`src/pages/`, `src/components/`) only collects input, supplies context and
+renders the result; it contains no scoring logic of its own.
+
 ## Test evidence
 
 Automated suite (Vitest), covering validation, each signal firing and not firing, both decision
@@ -83,6 +117,13 @@ npm install     # install dependencies
 npm run dev     # dev server on http://localhost:5173
 npm test        # run the engine test suite
 npm run build   # type-check + production build into dist/
+```
+
+Or run the production build in a container (multi-stage Dockerfile: Node build, nginx serve):
+
+```bash
+docker build -t smart-login-guardian .
+docker run -p 8080:80 smart-login-guardian   # http://localhost:8080
 ```
 
 No environment variables, no secrets, no backend — scoring runs entirely in the browser in
