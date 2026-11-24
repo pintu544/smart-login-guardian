@@ -1,3 +1,4 @@
+import { parseTimestampUtc } from './geo';
 import type { FieldErrors, LoginEvent, ValidationResult } from './types';
 
 const COUNTRY_RE = /^[A-Z]{2}$/;
@@ -22,18 +23,22 @@ export function validateEvent(input: unknown): ValidationResult {
   const id = input.id;
   if (typeof id !== 'string' || id.trim() === '') {
     errors.id = 'Event id is required (a non-empty string).';
+  } else if (id.length > 256) {
+    errors.id = 'Event id must be 256 characters or fewer.';
   }
 
   const timestamp = input.timestamp;
   if (typeof timestamp !== 'string' || timestamp.trim() === '') {
     errors.timestamp = 'Timestamp is required (ISO 8601 string).';
-  } else if (Number.isNaN(Date.parse(timestamp))) {
+  } else if (Number.isNaN(parseTimestampUtc(timestamp))) {
     errors.timestamp = 'Timestamp is not a parseable date. Use ISO 8601, e.g. 2026-11-15T14:32:00.000Z.';
   }
 
   const accountId = input.accountId;
   if (typeof accountId !== 'string' || accountId.trim() === '') {
     errors.accountId = 'Account id is required (a non-empty string).';
+  } else if (accountId.length > 256) {
+    errors.accountId = 'Account id must be 256 characters or fewer.';
   }
 
   const ip = input.ip;
@@ -49,11 +54,15 @@ export function validateEvent(input: unknown): ValidationResult {
   const deviceId = input.deviceId;
   if (typeof deviceId !== 'string' || deviceId.trim() === '') {
     errors.deviceId = 'Device id is required (a non-empty string).';
+  } else if (deviceId.length > 256) {
+    errors.deviceId = 'Device id must be 256 characters or fewer.';
   }
 
   const userAgent = input.userAgent;
   if (typeof userAgent !== 'string' || userAgent.trim() === '') {
     errors.userAgent = 'User agent is required (a non-empty string).';
+  } else if (userAgent.length > 2048) {
+    errors.userAgent = 'User agent must be 2048 characters or fewer.';
   }
 
   const success = input.success;
@@ -65,10 +74,10 @@ export function validateEvent(input: unknown): ValidationResult {
   if (
     typeof attemptsInWindow !== 'number' ||
     !Number.isInteger(attemptsInWindow) ||
-    attemptsInWindow < 0 ||
+    attemptsInWindow < 1 ||
     attemptsInWindow > 1000
   ) {
-    errors.attemptsInWindow = 'Attempts in window must be a whole number between 0 and 1000.';
+    errors.attemptsInWindow = 'Attempts in window must be a whole number between 1 and 1000.';
   }
 
   const accountAgeDays = input.accountAgeDays;
@@ -92,11 +101,16 @@ export function validateEvent(input: unknown): ValidationResult {
     return { ok: false, errors };
   }
 
+  const validTimestamp = timestamp as string;
+  const normalizedTimestamp = /Z|[+-]\d{2}:?\d{2}$/.test(validTimestamp)
+    ? validTimestamp
+    : validTimestamp + 'Z';
+
   return {
     ok: true,
     event: {
       id: (id as string).trim(),
-      timestamp: timestamp as string,
+      timestamp: normalizedTimestamp,
       accountId: (accountId as string).trim(),
       ip: ip as string,
       country: country as string,

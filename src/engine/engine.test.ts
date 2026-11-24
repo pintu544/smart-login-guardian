@@ -74,6 +74,31 @@ describe('validateEvent', () => {
     }
   });
 
+  it('rejects zero attempts in the window', () => {
+    const r = validateEvent({ ...baseEvent, attemptsInWindow: 0 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.attemptsInWindow).toMatch(/between 1 and 1000/);
+  });
+
+  it('normalizes a timestamp without a timezone to UTC', () => {
+    const r = validateEvent({ ...baseEvent, timestamp: '2026-11-15T04:30:00' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.event.timestamp).toBe('2026-11-15T04:30:00Z');
+  });
+
+  it('scores a bare timestamp the same as an explicit UTC timestamp', () => {
+    const bare = scoreEvent({ ...baseEvent, timestamp: '2026-11-15T04:30:00' }, baseContext);
+    const utc = scoreEvent(baseEvent, baseContext);
+    expect(bare.score).toBe(utc.score);
+    expect(bare.decision).toBe(utc.decision);
+  });
+
+  it('rejects a user agent longer than 2048 characters', () => {
+    const r = validateEvent({ ...baseEvent, userAgent: 'a'.repeat(2049) });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.userAgent).toMatch(/2048/);
+  });
+
   it('never throws on hostile input', () => {
     expect(() => validateEvent(null)).not.toThrow();
     expect(() => validateEvent(undefined)).not.toThrow();

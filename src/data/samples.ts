@@ -1,5 +1,5 @@
 import type { LoginEvent, ScoreContext } from '../engine/types';
-import { FIXTURES } from './fixtures';
+import { FIXTURES, REFERENCE_TIME } from './fixtures';
 
 export interface SamplePreset {
   id: string;
@@ -37,7 +37,7 @@ export const SAMPLES: SamplePreset[] = [
 
 export function sampleContext(s: SamplePreset): ScoreContext {
   return {
-    referenceTime: new Date().toISOString(),
+    referenceTime: REFERENCE_TIME,
     knownDeviceIds: s.knownDeviceIds
       .split(',')
       .map((d) => d.trim())

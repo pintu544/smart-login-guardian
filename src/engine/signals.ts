@@ -1,4 +1,4 @@
-import { distanceKm, localHour } from './geo';
+import { distanceKm, localHour, parseTimestampUtc } from './geo';
 import type { LoginEvent, ScoreContext, SignalResult } from './types';
 
 /**
@@ -105,7 +105,7 @@ export function impossibleTravel(event: LoginEvent, context: ScoreContext): Sign
     );
   }
   const hours =
-    (Date.parse(event.timestamp) - Date.parse(prev.timestamp)) / 3600_000;
+    (parseTimestampUtc(event.timestamp) - parseTimestampUtc(prev.timestamp)) / 3600_000;
   if (!(hours > 0)) {
     return result(base, false, 'The previous login is not earlier than this attempt, so travel speed cannot be computed.');
   }

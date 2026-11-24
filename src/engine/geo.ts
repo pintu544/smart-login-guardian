@@ -55,6 +55,10 @@ export function distanceKm(a: string, b: string): number | null {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+export function parseTimestampUtc(ts: string): number {
+  return /Z|[+-]\d{2}:\d{2}$/.test(ts) ? Date.parse(ts) : Date.parse(ts + 'Z');
+}
+
 /**
  * Local hour (0–23) at the given instant in the given country, using the
  * country's standard UTC offset. Returns null for unknown countries.
@@ -62,7 +66,7 @@ export function distanceKm(a: string, b: string): number | null {
 export function localHour(isoTimestamp: string, country: string): number | null {
   const geo = COUNTRY_GEO[country];
   if (!geo) return null;
-  const ms = Date.parse(isoTimestamp);
+  const ms = parseTimestampUtc(isoTimestamp);
   if (Number.isNaN(ms)) return null;
   const local = new Date(ms + geo.utcOffset * 3600_000);
   return local.getUTCHours();
